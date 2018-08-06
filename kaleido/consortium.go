@@ -51,6 +51,7 @@ func NewConsortium(name, description, mode string) Consortium {
 }
 
 func NewClient(api string, apiKey string) KaleidoClient {
+	fmt.Println(api)
 	r := resty.New().SetHostURL(api).SetAuthToken(apiKey)
 	return KaleidoClient{r}
 }

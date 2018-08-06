@@ -1,5 +1,5 @@
-EXE = kld-test
-PACKAGE = github.com/kaleido-io/kaleido-sdk-go
+EXE = kld-solutions
+PACKAGE = github.com/rvelaz/kaleido-sdk-go
 BASE 		= $(GOPATH)/src/$(PACKAGE)
 VERSION = 0.1.0
 

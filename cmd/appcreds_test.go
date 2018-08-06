@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/jarcoal/httpmock"
-	kld "github.com/kaleido-io/kaleido-sdk-go/kaleido"
+	kld "github.com/rvelaz/kaleido-sdk-go/kaleido"
 	"github.com/spf13/cobra"
 	resty "gopkg.in/resty.v1"
 )

@@ -23,14 +23,14 @@ The follow are regular steps to set up a typical golang dev environment. If you 
 
 You should have the following directory holding the project source:
 ```
-$GOPATH/src/github.com/kaleido-io/kaleido-sdk-go
+$GOPATH/src/github.com/rvelaz/kaleido-sdk-go
 ```
 
 ## Install Dependencies
 
 Use `dep` to install the dependent golang packages, from the root of the project:
 ```
-cd $GOPATH/src/github.com/kaleido-io/kaleido-sdk-go
+cd $GOPATH/src/github.com/rvelaz/kaleido-sdk-go
 dep ensure
 ```
 

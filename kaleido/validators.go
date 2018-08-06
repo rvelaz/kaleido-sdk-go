@@ -21,6 +21,9 @@ func ValidateGetResponse(res *resty.Response, err error, resourceName string) {
 
 func ValidateCreationResponse(res *resty.Response, err error, resourceName string) {
 	if res.StatusCode() != 201 {
+		fmt.Println(err)
+		fmt.Println("body")
+		fmt.Println(string(res.Body()))
 		msg := fmt.Sprintf("Could not create %s. Status code: %d.", resourceName, res.StatusCode())
 		exit(msg)
 	}
