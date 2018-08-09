@@ -1,7 +1,7 @@
 EXE = kld-solutions
 PACKAGE = github.com/rvelaz/kaleido-sdk-go
 BASE 		= $(GOPATH)/src/$(PACKAGE)
-VERSION = 0.1.0
+VERSION = 0.2.0
 
 .PHONY : all clean fmt test test-junit build
 

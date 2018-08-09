@@ -99,19 +99,43 @@ func (client *KaleidoClient) CreateConsortiumEnvironmentsMembersAndNodes(configP
 
 	c := readProjectConfig(configPath)
 	consortium := NewConsortium(c.Consortium.Name, c.Consortium.Description, c.Consortium.Mode)
-	fmt.Printf("Creating consortium: %v ", c.Consortium.Name)
-	consortiumRes, err := client.CreateConsortium(&consortium)
-	ValidateCreationResponse(consortiumRes, err, "consortium")
+	fmt.Printf("Creating consortium: %v\n", c.Consortium.Name)
+
+	var consortiums []Consortium
+	client.ListConsortium(&consortiums)
+	createConsortium := true
+	for _, existingCons := range consortiums {
+		if existingCons.Name == c.Consortium.Name {
+			createConsortium = false
+			out.ConsortiumID = existingCons.Id
+			fmt.Printf("Existing environment found: %s\n", c.Consortium.Name)
+		}
+	}
+
 	var cID Identifier
-	unmarshallID(consortiumRes.Body(), &cID)
-	out.ConsortiumID = cID.ID
+	if createConsortium {
+		consortiumRes, err := client.CreateConsortium(&consortium)
+		ValidateCreationResponse(consortiumRes, err, "consortium")
+		unmarshallID(consortiumRes.Body(), &cID)
+		out.ConsortiumID = cID.ID
+	}
 
 	var environmentsCreated []EnvironmentCreated
 	for _, env := range c.Consortium.Environments {
-		fmt.Printf("Creating environment: %v ", env.Name)
+		fmt.Printf("Creating environment: %s %s %s %s\n", env.Name, env.Description, c.Provider, c.Consensus)
 		envCreated := EnvironmentCreated{}
 		environment := NewEnvironment(env.Name, env.Description, c.Provider, c.Consensus)
-		envRes, err := client.CreateEnvironment(cID.ID, &environment)
+		var environments []Environment
+		client.ListEnvironments(out.ConsortiumID, &environments)
+		for _, existingEnv := range environments {
+			if existingEnv.Name == env.Name {
+				fmt.Printf("Deleting old environment: %v ", env.Name)
+				client.DeleteEnvironment(out.ConsortiumID, existingEnv.Id)
+				fmt.Printf("Environment %v deleted ", env.Name)
+			}
+		}
+
+		envRes, err := client.CreateEnvironment(out.ConsortiumID, &environment)
 		ValidateCreationResponse(envRes, err, "environment")
 		var eID Identifier
 		unmarshallID(envRes.Body(), &eID)
@@ -122,7 +146,7 @@ func (client *KaleidoClient) CreateConsortiumEnvironmentsMembersAndNodes(configP
 			memberCreated := Member{}
 			membership := NewMembership(m.Name)
 			fmt.Printf("Creating membership: %v ", m.Name)
-			membershipRes, err := client.CreateMembership(cID.ID, &membership)
+			membershipRes, err := client.CreateMembership(out.ConsortiumID, &membership)
 			ValidateCreationResponse(membershipRes, err, "membership")
 			var mID Identifier
 			unmarshallID(membershipRes.Body(), &mID)
@@ -133,13 +157,13 @@ func (client *KaleidoClient) CreateConsortiumEnvironmentsMembersAndNodes(configP
 			for _, n := range m.Nodes {
 				fmt.Printf("Creating Node: %v for member %v", n.Name, m.Name)
 				node := NewNode(n.Name, mID.ID)
-				resNode, err := client.CreateNode(cID.ID, eID.ID, &node)
+				resNode, err := client.CreateNode(out.ConsortiumID, eID.ID, &node)
 				ValidateCreationResponse(resNode, err, "node")
 				if c.Waitok {
 					var nID Identifier
 					unmarshallID(resNode.Body(), &nID)
 					var node Node
-					nodeInfoRes, err := client.GetNode(cID.ID, eID.ID, nID.ID, &node)
+					nodeInfoRes, err := client.GetNode(out.ConsortiumID, eID.ID, nID.ID, &node)
 					ValidateGetResponse(nodeInfoRes, err, "node")
 					var nState NodeState
 					unmarshallNodeState(nodeInfoRes.Body(), &nState)
@@ -152,11 +176,11 @@ func (client *KaleidoClient) CreateConsortiumEnvironmentsMembersAndNodes(configP
 						fmt.Printf("Waiting for node %v to start\n", nID.ID)
 						time.Sleep(time.Duration(waitForInitialization) * time.Second)
 						fmt.Printf("Getting status for node: %v\n", nID.ID)
-						nodeInfoRes, err := client.GetNode(cID.ID, eID.ID, nID.ID, &node)
+						nodeInfoRes, err := client.GetNode(out.ConsortiumID, eID.ID, nID.ID, &node)
 						ValidateGetResponse(nodeInfoRes, err, "node")
 						unmarshallNodeState(nodeInfoRes.Body(), &nState)
 					}
-					resStatus, err := client.GetNodeStatus(cID.ID, eID.ID, nID.ID, &node)
+					resStatus, err := client.GetNodeStatus(out.ConsortiumID, eID.ID, nID.ID, &node)
 					ValidateGetResponse(resStatus, err, "node")
 					var nodeStatus NodeStatus
 					err = json.Unmarshal(resStatus.Body(), &nodeStatus)
@@ -169,7 +193,7 @@ func (client *KaleidoClient) CreateConsortiumEnvironmentsMembersAndNodes(configP
 			}
 			memberCreated.Nodes = nodesCreated
 			appcreds := NewAppCreds(mID.ID)
-			appcredsRes, err := client.CreateAppCreds(cID.ID, eID.ID, &appcreds)
+			appcredsRes, err := client.CreateAppCreds(out.ConsortiumID, eID.ID, &appcreds)
 			ValidateCreationResponse(appcredsRes, err, "appcreds")
 			var appcredsCreated AppcredsCreated
 			err = json.Unmarshal(appcredsRes.Body(), &appcredsCreated)
@@ -184,7 +208,7 @@ func (client *KaleidoClient) CreateConsortiumEnvironmentsMembersAndNodes(configP
 		environmentsCreated = append(environmentsCreated, envCreated)
 	}
 	out.Environments = environmentsCreated
-	consortiumOut, err := json.Marshal(out)
+	consortiumOut, _ := json.Marshal(out)
 	return string(consortiumOut)
 }
 
