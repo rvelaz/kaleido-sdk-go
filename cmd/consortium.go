@@ -59,6 +59,7 @@ var consortiumCreateCmd = &cobra.Command{
 
 		if file != "" {
 			result := client.CreateConsortiumEnvironmentsMembersAndNodes(file, 30)
+			fmt.Println("########")
 			fmt.Println(result)
 		} else {
 			validateName()

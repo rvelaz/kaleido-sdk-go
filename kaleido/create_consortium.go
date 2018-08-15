@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	yaml "gopkg.in/yaml.v2"
@@ -32,6 +33,7 @@ type ConsortiumDefinition struct {
 		Mode         string `json:"mode"`
 		Environments []struct {
 			Members []struct {
+				Id    string `json:"id"`
 				Name  string `json:"name"`
 				Nodes []struct {
 					Name string `json:"name"`
@@ -129,9 +131,17 @@ func (client *KaleidoClient) CreateConsortiumEnvironmentsMembersAndNodes(configP
 		client.ListEnvironments(out.ConsortiumID, &environments)
 		for _, existingEnv := range environments {
 			if existingEnv.Name == env.Name {
-				fmt.Printf("Deleting old environment: %v ", env.Name)
+				fmt.Printf("Deleting old environment: %v\n", env.Name)
 				client.DeleteEnvironment(out.ConsortiumID, existingEnv.Id)
 				fmt.Printf("Environment %v deleted ", env.Name)
+				memberships := []Membership{}
+				client.ListMemberships(out.ConsortiumID, &memberships)
+				for _, member := range memberships {
+					if strings.Contains(member.OrgName, env.Name) {
+						fmt.Printf("Deleting membership: %s %s\n", member.OrgName, member.Id)
+						client.DeleteMembership(out.ConsortiumID, member.Id)
+					}
+				}
 			}
 		}
 
@@ -144,19 +154,23 @@ func (client *KaleidoClient) CreateConsortiumEnvironmentsMembersAndNodes(configP
 		var members []Member
 		for _, m := range env.Members {
 			memberCreated := Member{}
-			membership := NewMembership(m.Name)
-			fmt.Printf("Creating membership: %v ", m.Name)
-			membershipRes, err := client.CreateMembership(out.ConsortiumID, &membership)
-			ValidateCreationResponse(membershipRes, err, "membership")
-			var mID Identifier
-			unmarshallID(membershipRes.Body(), &mID)
-			memberCreated.ID = mID.ID
+			if len(m.Id) == 0 {
+				membership := NewMembership(m.Name)
+				fmt.Printf("Creating membership: %v ", m.Name)
+				membershipRes, err := client.CreateMembership(out.ConsortiumID, &membership)
+				ValidateCreationResponse(membershipRes, err, "membership")
+				var mID Identifier
+				unmarshallID(membershipRes.Body(), &mID)
+				memberCreated.ID = mID.ID
+			} else {
+				memberCreated.ID = m.Id
+			}
 			memberCreated.Name = m.Name
 
 			nodesCreated := []NodeStatus{}
 			for _, n := range m.Nodes {
 				fmt.Printf("Creating Node: %v for member %v", n.Name, m.Name)
-				node := NewNode(n.Name, mID.ID)
+				node := NewNode(n.Name, memberCreated.ID)
 				resNode, err := client.CreateNode(out.ConsortiumID, eID.ID, &node)
 				ValidateCreationResponse(resNode, err, "node")
 				if c.Waitok {
@@ -192,7 +206,7 @@ func (client *KaleidoClient) CreateConsortiumEnvironmentsMembersAndNodes(configP
 				}
 			}
 			memberCreated.Nodes = nodesCreated
-			appcreds := NewAppCreds(mID.ID)
+			appcreds := NewAppCreds(memberCreated.ID)
 			appcredsRes, err := client.CreateAppCreds(out.ConsortiumID, eID.ID, &appcreds)
 			ValidateCreationResponse(appcredsRes, err, "appcreds")
 			var appcredsCreated AppcredsCreated
